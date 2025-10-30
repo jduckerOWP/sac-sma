@@ -35,39 +35,51 @@ IMPLICIT NONE
   LOGICAL  :: bypass_ratio_check = .FALSE. ! <-- NEW FLAG TO FIX GOTO equivalents
   DOUBLE PRECISION :: THRES_ZERO
   DOUBLE PRECISION :: PAREA
+  DOUBLE PRECISION :: SURF_REMAINDER
 
+  ! Threshold to be considered as zero
   THRES_ZERO = 0.00001_dp
   PAREA = 1.0_dp - ADIMP - PCTIM
   
 
-  ! -------------------------------------------------------------------
-  ! START ET CALCULATION
-  ! -------------------------------------------------------------------
+  ! Set potential evapotranspiration
   EDMND = EP
+  ! Compute ET1 FROM Upper zone tension water storage
   E1 = EDMND * UZTWC / UZTWM
+  ! Residual ET demand
   RED = EDMND - E1
   UZTWC = UZTWC - E1
+  ! ET2 from upper zone free water storage
   E2 = 0.0_dp
-  
+
+  ! In case ET1 > UZTWS, no water in the upper
+  ! tension water storage
   IF (UZTWC .LE. 0.0_dp) THEN
     E1 = E1 + UZTWC
     UZTWC = 0.0_dp
     RED = EDMND - E1
     
-    ! Block to handle E2 from UZFWC (Original IF(UZFWC.GE.RED) GO TO 221)
+    ! When upper zone free water content is less than
+    ! residual ET
     IF (UZFWC .GE. RED) THEN
+      ! All content at upper zone free water zone will
+      ! be gone as ET
       E2 = UZFWC
       UZFWC = 0.0_dp
       RED = RED - E2
       IF (UZTWC < THRES_ZERO) UZTWC = 0.0_dp
       IF (UZFWC < THRES_ZERO) UZFWC = 0.0_dp
     ELSE
-      E2 = RED
+      ! When upper zone free water content is more than 
+      ! residual ET
+      E2 = RED ! all residual ET will be gone as ET
       UZFWC = UZFWC - E2
       RED = 0.0_dp
     END IF
     
-    ! This block is only executed if we did NOT hit the UZFWC < RED (bypass) condition
+    ! There's possibility that upper zone free water ratio exceeds
+    ! upper zone tension water ratio. If so, free water is
+    ! transferred to tension water storage
     IF ((UZTWC / UZTWM) .LT. (UZFWC / UZFWM)) THEN
       UZRAT = (UZTWC + UZFWC) / (UZTWM + UZFWM)
       UZTWC = UZTWM * UZRAT
@@ -79,24 +91,32 @@ IMPLICIT NONE
 
 
 
-  ! Compute ET from the lower zone (Original Label 225 onwards)
+  ! ET(3), ET from Lower zone tension water storage when
+  ! residual ET > 0
+  ! residual ET is always bigger than ET(3)
   E3 = RED * (LZTWC / (UZTWM + LZTWM))
   LZTWC = LZTWC - E3
-  
+
+  ! If lztwc is less than zero, et3 cannot exceed lztws
   IF (LZTWC .LT. 0.0_dp) THEN
     E3 = E3 + LZTWC
     LZTWC = 0.0_dp
   END IF
 
+  ! Water resupply from Lower free water storages to
+  ! Lower tension water storage
   SAVED = RSERV * (LZFPM + LZFSM)  
   RATLZT = LZTWC / LZTWM
   RATLZ = (LZTWC + LZFPC + LZFSC - SAVED) / (LZTWM + LZFPM + LZFSM - SAVED)
 
+  ! Water is first taken from supplementary water 
+  ! storage for resupply
   IF (RATLZT .LT. RATLZ) THEN
     DEL = (RATLZ - RATLZT) * LZTWM
-    LZTWC = LZTWC + DEL
+    LZTWC = LZTWC + DEL ! Transfer water from lzfss to lztws
     LZFSC = LZFSC - DEL
-    
+
+    ! If tranfer exceeds lzfsc then remainder comes from lzfps
     IF (LZFSC .LT. 0.0_dp) THEN
       LZFPC = LZFPC + LZFSC
       LZFSC = 0.0_dp
@@ -104,135 +124,181 @@ IMPLICIT NONE
   END IF
 
   IF (LZTWC < THRES_ZERO) LZTWC = 0.0_dp
-  
+
+  ! ET(5), ET from additional impervious (ADIMP) area
+  ! ????? no idea where this come from, I think there's
+  ! a possibility that et5 can be negative values
   E5 = E1 + (RED + E2) * (ADIMC - E1 - UZTWC) / (UZTWM + LZTWM)
   ADIMC = ADIMC - E5
   
   IF (ADIMC .LT. 0.0_dp) THEN
+    ! et5 cannot exceed adims
     E5 = E5 + ADIMC
     ADIMC = 0.0_dp
   END IF
   E5 = E5 * ADIMP
-  
-  ! -------------------------------------------------------------------
-  ! COMPUTE PERCOLATION AND RUNOFF AMOUNTS.
-  ! -------------------------------------------------------------------
+
+  ! Time interval available moisture in excess of uztw requirements
   TWX = PXV + UZTWC - UZTWM
-  
+
+  ! All moisture held in uztw- no excess
   IF (TWX .LT. 0.0_dp) THEN
     UZTWC = UZTWC + PXV
     TWX = 0.0_dp
+  ! Moisture available in excess of uztw storage
   ELSE
     UZTWC = UZTWM
   END IF
-  
+
+  ! For now twx is excess rainfall after filling the uztwc
   ADIMC = ADIMC + PXV - TWX
+  ! Compute Impervious Area Runoff
   ROIMP = PXV * PCTIM
   SIMPVT = SIMPVT + ROIMP
-  
+
+  ! Initialize time interval sums
   SBF=0.0_dp; SSUR=0.0_dp; SIF=0.0_dp; SPERC=0.0_dp; SDRO=0.0_dp; SPBF=0.0_dp
 
+  ! Determine computational time increments for the basic time interval
+
+  ! Number of time increments that interval is divided 
+  ! into for further soil-moisture accountng
   NINC = INT(FLOOR(1.0_dp + 0.2_dp * (UZFWC + TWX)))
   IF (NINC .LT. 1) NINC = 1
-  
+
+  ! Length of each increment in days
   DINC = (1.0_dp / REAL(NINC, dp)) * DT
+  ! Amount of available moisture for each increment
   PINC = TWX / REAL(NINC, dp)
-  
+
+  ! Compute free water depletion fractions for the time increment 
+  ! (basic depletions are for one day)
   DUZ = 1.0_dp - ((1.0_dp - UZK) ** DINC)
   DLZP = 1.0_dp - ((1.0_dp - LZPK) ** DINC)
   DLZS = 1.0_dp - ((1.0_dp - LZSK) ** DINC)
   
-  ! -------------------------------------------------------------------
-  ! START INCREMENTAL LOOP
-  ! -------------------------------------------------------------------
+  ! Start incremental for-loop for the time interval
   DO I = 1, NINC
-    
+    ! Amount of surface runoff. This will be updated.
     ADSUR = 0.0_dp
+
+    ! Compute direct runoff from adimp area
     RATIO = (ADIMC - UZTWC) / LZTWM
     IF (RATIO .LT. 0.0_dp) RATIO = 0.0_dp
+
+    ! Amount of direct runoff from the additional impervious area 
     ADDRO = PINC * (RATIO ** 2)
     
-    ! Baseflow (BF)
+    ! Compute baseflow and keep track of time interval sum
+    ! Baseflow from free water primary storage
     BF = LZFPC * DLZP
     LZFPC = LZFPC - BF
     IF (LZFPC .LE. 0.0001_dp) THEN
       BF = BF + LZFPC
       LZFPC = 0.0_dp
     END IF
-    SBF = SBF + BF
     
+    SBF = SBF + BF
+
+    ! Baseflow from free water supplemental storage
     BF = LZFSC * DLZS
     LZFSC = LZFSC - BF
-
     IF (LZFSC .LT. 0.0001_dp) THEN
       BF = BF + LZFSC
       LZFSC = 0.0_dp
     END IF
+
+    ! Total Baseflow from primary and supplemental storages
     SBF = SBF + BF
     
-    ! Percolation (PERC)
+    ! Compute PERCOLATION- if no water available then skip.
     IF ((PINC + UZFWC) .LT. 0.01_dp) THEN
       UZFWC = UZFWC + PINC
     ELSE
+      ! Limiting drainage rate from the combined saturated
+      ! lower zone storages
       PERCM = LZFPM * DLZP + LZFSM * DLZS
       PERC = PERCM * (UZFWC / UZFWM)
+
+      ! DEFR is the lower zone moisture deficiency ratio
       DEFR = 1.0_dp - (LZTWC + LZFPC + LZFSC) / (LZTWM + LZFPM + LZFSM)
 
       IF (DEFR .LT. 0.0_dp) DEFR = 0.0_dp
-     
+
+      !!!! This is not in the R code !!!!!!
       FR = 1.0_dp
       FI = 1.0_dp
 
-      !!!! This is not in the R code !!!!!!
       ! Frozen Ground Adjustment
       IF (IFRZE .NE. 0) THEN
         UZDEFR = 1.0_dp - ((UZTWC + UZFWC) / (UZTWM + UZFWM))
         CALL FGFR1(DEFR, FR, FI, LZTWC, LZFSC, LZFPC, LZTWM, LZFPM, LZFSM)
       END IF
       !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
       
       PERC = PERC * (1.0_dp + ZPERC * (DEFR ** REXP)) * FR
-      
+
+      ! Note. . . percolation occurs from uzfws before pav is added
+
+      ! Percolation rate exceeds uzfws
       IF (PERC .GE. UZFWC) THEN
         PERC = UZFWC
       END IF 
-      
+
+      ! Percolation rate is less than uzfws.
       UZFWC = UZFWC - PERC
-      
+
+      ! Check to see if percolation exceeds lower zone deficiency.
       CHECK = LZTWC + LZFPC + LZFSC + PERC - LZTWM - LZFPM - LZFSM
       IF (CHECK .GT. 0.0_dp) THEN
         PERC = PERC - CHECK
         UZFWC = UZFWC + CHECK
       END IF
-      
+
+      ! SPERC is the time interval summation of PERC
       SPERC = SPERC + PERC
       
-      ! Interflow (DEL)
+      ! Compute interflow and keep track of time interval sum. 
+      ! Note that PINC has not yet been added.
       DEL = UZFWC * DUZ * FI
       SIF = SIF + DEL
       UZFWC = UZFWC - DEL
+     
+      ! Distribute percolated water into the lower zones. Tension water
+      ! must be filled first except for the PFREE area. PERCT is
+      ! percolation to tension water and PERCF is percolation going to
+      ! free water.
       
-      ! Distribute Percolation to LZ
+      ! Percolation going to the tension water storage
       PERCT = PERC * (1.0_dp - PFREE)
       
       IF ((PERCT + LZTWC) .LE. LZTWM) THEN
         LZTWC = LZTWC + PERCT
+        ! Pecolation going to th lower zone free water storages
         PERCF = 0.0_dp      
       ELSE
         PERCF = PERCT + LZTWC - LZTWM
         LZTWC = LZTWM
       END IF 
-      
+
+      ! Distribute percolation in excess of tension requirements
+      ! among the free water storages.
       PERCF = PERCF + (PERC * PFREE)
       
       IF (PERCF .NE. 0.0_dp) THEN
+        ! Relative size of the primary storage as compared with
+        ! total lower zone free water storages
         HPL = LZFPM / (LZFPM + LZFSM)
+        ! Relative fullness of each storage.
         RATLP = LZFPC / LZFPM
         RATLS = LZFSC / LZFSM
+        ! The fraction going to primary
         FRACP = HPL * 2.0_dp * (1.0_dp - RATLP) / (2.0_dp - ratlp - ratls)
         IF (FRACP .GT. 1.0_dp) FRACP = 1.0_dp
-              
+        ! Amount of the excess percolation going to primary      
         PERCP = PERCF * FRACP
+        ! Amount of the excess percolation going to supplemental
         PERCS = PERCF - PERCP
         LZFSC = LZFSC + PERCS
         
@@ -242,7 +308,8 @@ IMPLICIT NONE
         END IF 
         
         LZFPC = LZFPC + (PERCF - PERCS)
-        
+
+        ! Check to make sure lzfps does not exceed lzfpm
         IF (LZFPC .GE. LZFPM) THEN
           EXCESS = LZFPC - LZFPM
           LZTWC = LZTWC + EXCESS
@@ -251,15 +318,22 @@ IMPLICIT NONE
         
       END IF
       
-      ! Distribute PINC (Available Moisture)
+      ! Distribute PINC between uzfws and surface runoff
       IF (PINC .NE. 0.0_dp) THEN
-        
+
+        ! Check if pinc exceeds uzfwm
         IF ((PINC + UZFWC) .LE. UZFWM) THEN
-          UZFWC = UZFWC + PINC
+        ! no surface runoff
+        UZFWC = UZFWC + PINC
         ELSE
+          ! Surface runoff
           SUR = PINC + UZFWC - UZFWM
           UZFWC = UZFWM
           SSUR = SSUR + (SUR * PAREA)
+          ! ADSUR is the amount of surface runoff which comes from
+          ! that portion of adimp which is not currently generating
+          ! direct runoff. ADDRO/PINC is the fraction of adimp
+          ! currently generating direct runoff.
           ADSUR = SUR * (1.0_dp - ADDRO / PINC)
           SSUR = SSUR + ADSUR * ADIMP          
         END IF
@@ -274,20 +348,27 @@ IMPLICIT NONE
         ADDRO = ADDRO + ADIMC - (UZTWM + LZTWM)
         ADIMC = UZTWM + LZTWM
       END IF 
-      
+
+      ! Direct runoff from the additional impervious area
       SDRO = SDRO + ADDRO * ADIMP
 
       IF(ADMIC < THRES_ZERO) ADMIC = 0.0_dp
-          
+      
+  ! END of incremental for loop     
   END DO
-  ! -------------------------------------------------------------------
 
-  ! Compute Sums and Outputs
+  ! Compute sums and adjust runoff amounts by 
+  ! the area over which they are generated.
+
+  ! EUSED is the ET from PAREA which is 1.0 - adimp - pctim
   EUSED = E1 + E2 + E3
   SIF = SIF * PAREA
 
-  TBF = SBF * PAREA
-  BFCC = TBF * (1.0_dp + SIDE)
+  ! Separate channel component of baseflow from the non-channel component
+  TBF = SBF * PAREA ! TBF is the total baseflow
+  BFCC = TBF * (1.0_dp + SIDE) ! BFCC is baseflow, channel component 
+
+  
   !!!!!!!! Not in R code !!!!!!!!!!
   BFP = SPBF * PAREA / (1.0_dp + SIDE)
   BFS = BFCC - BFP
@@ -303,30 +384,49 @@ IMPLICIT NONE
   SRODT = SRODT + SDRO
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  
+
+  !  Surface flow consists of Direct runoff and Surface inflow to the channel
   TCI = ROIMP + SDRO + SSUR + SIF + BFCC
-  
+
+  ! ET(4)- ET from riparian vegetation.
+  ! No effect if riva is set to zero
   E4 = (EDMND - EUSED) * RIVA
-  
+
+  ! Compute total evapotransporation - TET
+  EUSED = EUSED * PAREA
+  TET = EUSED + E5 + E4
+
+  ! Check that adims >= uztws
+  IF (ADIMC .LT. UZTWC) ADIMC = UZTWC 
+
+  ! Total inflow to channel for a timestep
+  ! Adjustments to prevent negative flows
+
+  ! If total outflow < 0 surface and baseflow needs to be updated
   TCI = TCI - E4
   IF (TCI .LT. 0.0_dp) THEN
-    E4 = E4 + TCI
+    BFCC = 0.0_dp
+    ! Commented out, not in R code
+    !E4 = E4 + TCI
     TCI = 0.0_dp
+  ELSE
+     SURF_REMAINDER = ROIMP + SDRO + SSUR + SIF - E4
+     TCI = MAX(0.0_dp,SURF_REMAINDER)
+     ! In this case, base is reduced
+     IF (SURF_REMAINDER < 0.0_dp) THEN
+       BFCC = BFCC + SURF_REMAINDER
+       IF (BFCC < 0.0_dp) BFCC = 0.0_dp
+     ENDIF
   END IF
-  IF (ADIMC .LT. UZTWC) ADIMC = UZTWC 
 
   !!!!!!!! Not in R code !!!!!!!!!!
 
   SROT = SROT + TCI
-  
-  EUSED = EUSED * PAREA
-  TET = EUSED + E5 + E4
   SETT = SETT + TET
   SE1 = SE1 + E1 * PAREA
   SE3 = SE3 + E3 * PAREA
   SE4 = SE4 + E4
   SE5 = SE5 + E5
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   ! Call FROST1 Subroutine
   IF (IFRZE .GT. 0) CALL FROST1(PXV, SSUR, SDRO, TA, LWE, WE, ISC, AESC, DT, &
@@ -341,6 +441,9 @@ IMPLICIT NONE
   RSUM(5) = RSUM(5) + SIF
   RSUM(6) = RSUM(6) + BFS
   RSUM(7) = RSUM(7) + BFP
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  
   
 END SUBROUTINE SAC1
 
