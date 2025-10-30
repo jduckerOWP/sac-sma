@@ -351,7 +351,7 @@ IMPLICIT NONE
       ! Direct runoff from the additional impervious area
       SDRO = SDRO + ADDRO * ADIMP
 
-      IF(ADIMC < THRES_ZERO) ADMIC = 0.0_dp
+      IF(ADIMC < THRES_ZERO) ADIMC = 0.0_dp
       
   ! END of incremental for loop     
   END DO
