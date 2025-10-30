@@ -34,7 +34,6 @@ IMPLICIT NONE
   INTEGER  :: I, NINC
   LOGICAL  :: bypass_ratio_check = .FALSE. ! <-- NEW FLAG TO FIX GOTO equivalents
   DOUBLE PRECISION :: THRES_ZERO
-  DOUBLE PRECISION :: PAREA
   DOUBLE PRECISION :: SURF_REMAINDER
 
   ! Threshold to be considered as zero
@@ -352,7 +351,7 @@ IMPLICIT NONE
       ! Direct runoff from the additional impervious area
       SDRO = SDRO + ADDRO * ADIMP
 
-      IF(ADMIC < THRES_ZERO) ADMIC = 0.0_dp
+      IF(ADIMC < THRES_ZERO) ADMIC = 0.0_dp
       
   ! END of incremental for loop     
   END DO
