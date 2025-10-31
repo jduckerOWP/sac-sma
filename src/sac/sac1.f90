@@ -407,20 +407,24 @@ IMPLICIT NONE
 
   ! If total outflow < 0 surface and baseflow needs to be updated
   TCI = TCI - E4
-  IF (TCI .LT. 0.0_dp) THEN
-    BFCC = 0.0_dp
-    ! Commented out, not in R code
-    !E4 = E4 + TCI
-    TCI = 0.0_dp
-  ELSE
-     SURF_REMAINDER = ROIMP + SDRO + SSUR + SIF - E4
-     TCI = MAX(0.0_dp,SURF_REMAINDER)
-     ! In this case, base is reduced
-     IF (SURF_REMAINDER < 0.0_dp) THEN
-       BFCC = BFCC + SURF_REMAINDER
-       IF (BFCC < 0.0_dp) BFCC = 0.0_dp
-     ENDIF
-  END IF
+
+  !!! This R code flag here causes mass imbalance to explode !!!!
+  !IF (TCI .LT. 0.0_dp) THEN
+  !  BFCC = 0.0_dp
+  !  ! Commented out, not in R code
+  !  !E4 = E4 + TCI
+  !  TCI = 0.0_dp
+  !ELSE
+  !   SURF_REMAINDER = ROIMP + SDRO + SSUR + SIF - E4
+  !   TCI = MAX(0.0_dp,SURF_REMAINDER)
+  !   ! In this case, base is reduced
+  !   IF (SURF_REMAINDER < 0.0_dp) THEN
+  !     BFCC = BFCC + SURF_REMAINDER
+  !     IF (BFCC < 0.0_dp) BFCC = 0.0_dp
+  !   ENDIF
+  !END IF
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
 
   !!!!!!!! Not in R code !!!!!!!!!!
 
