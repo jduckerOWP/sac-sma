@@ -60,7 +60,7 @@ IMPLICIT NONE
     
     ! When upper zone free water content is less than
     ! residual ET
-    IF (UZFWC .GE. RED) THEN
+    IF (UZFWC .LT. RED) THEN
       ! All content at upper zone free water zone will
       ! be gone as ET
       E2 = UZFWC
@@ -75,7 +75,9 @@ IMPLICIT NONE
       UZFWC = UZFWC - E2
       RED = 0.0_dp
     END IF
-    
+  ! In the case ET1 <= UZTWS, all maximum et (et1) are
+  ! consumed at UZTWC, so no et from uzfwc (et2=0)
+  ELSE  
     ! There's possibility that upper zone free water ratio exceeds
     ! upper zone tension water ratio. If so, free water is
     ! transferred to tension water storage
@@ -88,12 +90,10 @@ IMPLICIT NONE
     IF (UZTWC < THRES_ZERO) UZTWC = 0.0_dp
   END IF
 
-
-
   ! ET(3), ET from Lower zone tension water storage when
   ! residual ET > 0
   ! residual ET is always bigger than ET(3)
-  E3 = RED * (LZTWC / (UZTWM + LZTWM))
+  E3 = RED * LZTWC / (UZTWM + LZTWM)
   LZTWC = LZTWC - E3
 
   ! If lztwc is less than zero, et3 cannot exceed lztws
@@ -151,10 +151,14 @@ IMPLICIT NONE
 
   ! For now twx is excess rainfall after filling the uztwc
   ADIMC = ADIMC + PXV - TWX
+  
   ! Compute Impervious Area Runoff
   ROIMP = PXV * PCTIM
-  SIMPVT = SIMPVT + ROIMP
 
+  !!!! Not in R Code !!!!!
+  !SIMPVT = SIMPVT + ROIMP
+  !!!!!!!!!!!!!!!!!!!!!!!!
+  
   ! Initialize time interval sums
   SBF=0.0_dp; SSUR=0.0_dp; SIF=0.0_dp; SPERC=0.0_dp; SDRO=0.0_dp; SPBF=0.0_dp
 
@@ -202,7 +206,7 @@ IMPLICIT NONE
     ! Baseflow from free water supplemental storage
     BF = LZFSC * DLZS
     LZFSC = LZFSC - BF
-    IF (LZFSC .LT. 0.0001_dp) THEN
+    IF (LZFSC .LE. 0.0001_dp) THEN
       BF = BF + LZFSC
       LZFSC = 0.0_dp
     END IF
@@ -211,7 +215,7 @@ IMPLICIT NONE
     SBF = SBF + BF
     
     ! Compute PERCOLATION- if no water available then skip.
-    IF ((PINC + UZFWC) .LT. 0.01_dp) THEN
+    IF ((PINC + UZFWC) .LE. 0.01_dp) THEN
       UZFWC = UZFWC + PINC
     ELSE
       ! Limiting drainage rate from the combined saturated
@@ -306,7 +310,7 @@ IMPLICIT NONE
           LZFSC = LZFSM
         END IF 
         
-        LZFPC = LZFPC + (PERCF - PERCS)
+        LZFPC = LZFPC + PERCF - PERCS
 
         ! Check to make sure lzfps does not exceed lzfpm
         IF (LZFPC .GE. LZFPM) THEN
@@ -475,17 +479,21 @@ SUBROUTINE FGFR1(LZDEFR, FR, FI, LZTWC, LZFSC, LZFPC, LZTWM, LZFPM, LZFSM)
   ! LOGIC
   IF (FINDX .LT. FRTEMP) THEN
     EXP = FRTEMP - FINDX
+    RETURN
+  ELSE
     FSAT = (1.0_dp - SATR) ** EXP
     FDRY = 1.0_dp
-
-    IF (LZDEFR .GT. 0.0_dp) THEN
-      FR = FSAT + (FDRY - FSAT) * (LZDEFR ** FREXP)
-      FI = FR
-    ELSE
-      FR = FSAT
-      FI = FR
-    END IF
+  ENDIF
+  IF (LZDEFR .GT. 0.0_dp) THEN
+    FR = FSAT + (FDRY - FSAT) * (LZDEFR ** FREXP)
+    FI = FR
+    RETURN
+  ELSE
+    FR = FSAT
+    FI = FR
+    RETURN
   END IF
+  
 
 END SUBROUTINE FGFR1
 
@@ -533,31 +541,110 @@ SUBROUTINE FROST1(PX, SUR, DIR, TA, LWE, WE, ISC, AESC, DT, &
     END IF
   END IF
 
-  IF (.NOT. (FINDX .GE. 0.0_dp .AND. TA .GE. 0.0_dp)) THEN
-
-    IF (LWE .EQ. 0.0_dp .OR. WE .EQ. 0.0_dp .OR. ISC .GT. 0 .AND. AESC .EQ. 0.0_dp) THEN
-      C = CSOIL
+  IF ((FINDX .GE. 0.0_dp) .AND. (TA .GE. 0.0_dp)) THEN
+    IF (FINDX.LT.0.0)
+      CONTINUE
     ELSE
-      IF (ISC .GT. 0) THEN
-        COVER = AESC
+      FGCO(1) = FINDX
+      RETURN
+    ENDIF
+  ENDIF
+   
+  IF ((LWE .EQ. 0.0_dp) .OR (WE.EQ.0.0_dp)) THEN
+    C = CSOIL
+    IF (TA.GE.0.0) THEN
+      FINDX=FINDX+C*TA+GHC
+      IF (FINDX.LT.0.0) THEN
+        CONTINUE
       ELSE
-        COVER = 1.0_dp
-      END IF
-
-      TWE = WE / COVER
-      C = CSOIL * (1.0_dp - COVER) + CSOIL * ((1.0_dp - CSNOW) ** TWE) * COVER
-    END IF
-
-    IF (TA .LT. 0.0_dp) THEN
-      CFI = -C * SQRT(TA * TA + FINDX * FINDX) - C * FINDX + GHC
-      FINDX = FINDX + CFI
+        FINDX = 0.0_dp
+        FGCO(1)=FINDX
+        RETURN
+      ENDIF
     ELSE
-      FINDX = FINDX + C * TA + GHC
-    END IF
-
-    IF (FINDX .GT. 0.0_dp) FINDX = 0.0_dp
-  END IF
-
-  FGCO(1) = FINDX
-
+      CFI=-C*SQRT(TA*TA+FINDX*FINDX)-C*FINDX+GHC
+      FINDX=FINDX+CFI
+      IF (FINDX.LT.0.0) THEN
+        CONTINUE
+      ELSE
+        FINDX = 0.0_dp
+        FGCO(1)=FINDX
+        RETURN
+      ENDIF
+    ENDIF
+  ELSE IF (ISC.GT.0) THEN
+    COVER=AESC
+    IF (COVER.EQ.0.0) THEN
+      C=CSOIL
+      IF (TA.GE.0.0) THEN
+        FINDX=FINDX+C*TA+GHC
+        IF (FINDX.LT.0.0) THEN
+          CONTINUE
+        ELSE
+          FINDX = 0.0_dp
+          FGCO(1)=FINDX
+          RETURN
+        ENDIF
+      ELSE
+        CFI=-C*SQRT(TA*TA+FINDX*FINDX)-C*FINDX+GHC
+        FINDX=FINDX+CFI
+        IF (FINDX.LT.0.0) THEN
+          CONTINUE
+        ELSE
+          FINDX = 0.0_dp
+          FGCO(1)=FINDX
+          RETURN
+        ENDIF
+      ENDIF
+    ELSE
+      TWE=WE/COVER
+      C=CSOIL*(1.0-COVER)+CSOIL*((1.0-CSNOW)**TWE)*COVER
+      IF (TA.GE.0.0) THEN
+        FINDX=FINDX+C*TA+GHC
+        IF (FINDX.LT.0.0) THEN
+          CONTINUE
+        ELSE
+          FINDX = 0.0_dp
+          FGCO(1)=FINDX
+          RETURN
+        ENDIF
+      ELSE
+        CFI=-C*SQRT(TA*TA+FINDX*FINDX)-C*FINDX+GHC
+        FINDX=FINDX+CFI
+        IF (FINDX.LT.0.0) THEN
+          CONTINUE
+        ELSE
+          FINDX = 0.0_dp
+          FGCO(1)=FINDX
+          RETURN
+        ENDIF
+      ENDIF        
+    ENDIF
+      
+  ELSE
+    COVER=1.0
+    TWE=WE/COVER
+    C=CSOIL*(1.0-COVER)+CSOIL*((1.0-CSNOW)**TWE)*COVER
+    IF (TA.GE.0.0) THEN
+      FINDX=FINDX+C*TA+GHC
+      IF (FINDX.LT.0.0) THEN
+        CONTINUE
+      ELSE
+        FINDX = 0.0_dp
+        FGCO(1)=FINDX
+        RETURN
+      ENDIF
+    ELSE
+      CFI=-C*SQRT(TA*TA+FINDX*FINDX)-C*FINDX+GHC
+      FINDX=FINDX+CFI
+      IF (FINDX.LT.0.0) THEN
+        CONTINUE
+      ELSE
+        FINDX = 0.0_dp
+        FGCO(1)=FINDX
+        RETURN
+      ENDIF
+    ENDIF
+  ENDIF
+  RETURN
 END SUBROUTINE FROST1
