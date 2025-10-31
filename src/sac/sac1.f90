@@ -542,7 +542,7 @@ SUBROUTINE FROST1(PX, SUR, DIR, TA, LWE, WE, ISC, AESC, DT, &
   END IF
 
   IF ((FINDX .GE. 0.0_dp) .AND. (TA .GE. 0.0_dp)) THEN
-    IF (FINDX.LT.0.0)
+    IF (FINDX.LT.0.0) THEN
       CONTINUE
     ELSE
       FGCO(1) = FINDX
@@ -550,7 +550,7 @@ SUBROUTINE FROST1(PX, SUR, DIR, TA, LWE, WE, ISC, AESC, DT, &
     ENDIF
   ENDIF
    
-  IF ((LWE .EQ. 0.0_dp) .OR (WE.EQ.0.0_dp)) THEN
+  IF ((LWE .EQ. 0.0_dp) .OR. (WE.EQ.0.0_dp)) THEN
     C = CSOIL
     IF (TA.GE.0.0) THEN
       FINDX=FINDX+C*TA+GHC
