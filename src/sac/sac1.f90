@@ -403,18 +403,15 @@ IMPLICIT NONE
   IF (ADIMC .LT. UZTWC) ADIMC = UZTWC 
 
   ! Total inflow to channel for a timestep
-  ! Adjustments to prevent negative flows
-
-  ! If total outflow < 0 surface and baseflow needs to be updated
   TCI = TCI - E4
 
-  ! If total outflow <0 surface and baseflow needs to be updated
-  IF (TCI .LT. 0.0_dp) THEN
-    BFCC = 0.0_dp
-    TCI = 0.0_dp
-  ENDIF
-  
   !!! This R code flag here causes mass imbalance to explode !!!!
+  !!! TCI is a component to mass balance, which should be allowed !!!
+  !!! to be negative to indicate a balance between mass gained !!!
+  !!! and mass lost within the given system !!!
+  !IF (TCI .LT. 0.0_dp) THEN
+  !  BFCC = 0.0_dp
+  !  TCI = 0.0_dp
   !ELSE
   !   SURF_REMAINDER = ROIMP + SDRO + SSUR + SIF - E4
   !   TCI = MAX(0.0_dp,SURF_REMAINDER)
