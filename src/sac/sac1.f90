@@ -66,6 +66,8 @@ IMPLICIT NONE
       E2 = UZFWC
       UZFWC = 0.0_dp
       RED = RED - E2
+      !!!! New implementation in R Code that   !!!!
+      !!!! was not present in NOAA-OWP/sac-sma !!!!
       IF (UZTWC < THRES_ZERO) UZTWC = 0.0_dp
       IF (UZFWC < THRES_ZERO) UZFWC = 0.0_dp
     ELSE
@@ -75,6 +77,13 @@ IMPLICIT NONE
       UZFWC = UZFWC - E2
       RED = 0.0_dp
     END IF
+  !!!! This IF/ELSE logic here differs from   !!!!
+  !!!! NOAA-OWP/sac-sma in which this ELSE    !!!!
+  !!!! statement had to be met only with      !!!!
+  !!!! UZWTC <= 0.0; NOAA-OWP/sac-sma critera !!!!
+  !!!! was UZWTC <= 0.0 OR                    !!!!
+  !!!! UTZWC < 0.0 and UZFWC >= RED.          !!!!
+  
   ! In the case ET1 <= UZTWS, all maximum et (et1) are
   ! consumed at UZTWC, so no et from uzfwc (et2=0)
   ELSE  
@@ -86,6 +95,8 @@ IMPLICIT NONE
       UZTWC = UZTWM * UZRAT
       UZFWC = UZFWM * UZRAT
     END IF
+    !!!! New implementation in R Code that   !!!!
+    !!!! was not present in NOAA-OWP/sac-sma !!!!    
     IF (UZTWC < THRES_ZERO) UZTWC = 0.0_dp
     IF (UZTWC < THRES_ZERO) UZTWC = 0.0_dp
   END IF
@@ -154,10 +165,6 @@ IMPLICIT NONE
   
   ! Compute Impervious Area Runoff
   ROIMP = PXV * PCTIM
-
-  !!!! Not in R Code !!!!!
-  !SIMPVT = SIMPVT + ROIMP
-  !!!!!!!!!!!!!!!!!!!!!!!!
   
   ! Initialize time interval sums
   SBF=0.0_dp; SSUR=0.0_dp; SIF=0.0_dp; SPERC=0.0_dp; SDRO=0.0_dp; SPBF=0.0_dp
@@ -226,6 +233,8 @@ IMPLICIT NONE
       ! DEFR is the lower zone moisture deficiency ratio
       DEFR = 1.0_dp - (LZTWC + LZFPC + LZFSC) / (LZTWM + LZFPM + LZFSM)
 
+      !!!! New implementation in R Code that   !!!!
+      !!!! was not present in NOAA-OWP/sac-sma !!!!
       IF (DEFR .LT. 0.0_dp) DEFR = 0.0_dp
 
       !!!!!!!! Not in R code, but kept to potentially  !!!!!!!!!!!!!!!
@@ -313,6 +322,10 @@ IMPLICIT NONE
         
         LZFPC = LZFPC + PERCF - PERCS
 
+      !!!! New implementation in R Code that   !!!!
+      !!!! was not present in NOAA-OWP/sac-sma !!!!
+      !!!! which was originally the IF logic   !!!!
+      !!!! of LZFPC .GT. LZFPM                 !!!!
         ! Check to make sure lzfps does not exceed lzfpm
         IF (LZFPC .GE. LZFPM) THEN
           EXCESS = LZFPC - LZFPM
@@ -356,6 +369,8 @@ IMPLICIT NONE
       ! Direct runoff from the additional impervious area
       SDRO = SDRO + ADDRO * ADIMP
 
+      !!!! New implementation in R Code that   !!!!
+      !!!! was not present in NOAA-OWP/sac-sma !!!!
       IF(ADIMC < THRES_ZERO) ADIMC = 0.0_dp
       
   ! END of incremental for loop     
@@ -373,12 +388,14 @@ IMPLICIT NONE
   BFCC = TBF / (1.0_dp + SIDE) ! BFCC is baseflow, channel component 
 
   
-  !!!!!!!! Not in R code !!!!!!!!!!
+  !!!!!!!! Not in R code, but same calculations for  !!!!!!!!!!
+  !!!!!!!! sac-sma output needed for the BMI that is !!!!!!!!!!
+  !!!!!!!! essentially output in the R code base     !!!!!!!!!!
   BFP = SPBF * PAREA / (1.0_dp + SIDE)
   BFS = BFCC - BFP
   IF (BFS .LT. 0.0_dp) BFS = 0.0_dp
   BFNCC = TBF - BFCC
-  
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 
   !  Surface flow consists of Direct runoff and Surface inflow to the channel
@@ -438,7 +455,11 @@ END SUBROUTINE SAC1
 ! ====================================================================
 
 SUBROUTINE FGFR1(LZDEFR, FR, FI, LZTWC, LZFSC, LZFPC, LZTWM, LZFPM, LZFSM)
+  ! THIS SUBROUTINE COMPUTES THE CHANGE IN THE PERCOLATION AND
+  ! INTERFLOW WITHDRAWAL RATES DUE TO FROZEN GROUND.
 
+  ! WRITTEN BY -- ERIC ANDERSON - HRL   JUNE 1980
+  
   USE sac_data_mod, ONLY: dp, FGCO, FGPM
 
   IMPLICIT NONE
@@ -457,14 +478,17 @@ SUBROUTINE FGFR1(LZDEFR, FR, FI, LZTWC, LZFSC, LZFPC, LZTWM, LZFPM, LZFSM)
   SATR = FGPM(6)
   FREXP = FGPM(7)
 
-  ! LOGIC
+  ! DETERMINE IF FROZEN GROUND EFFECT EXISTS.
   IF (FINDX .LT. FRTEMP) THEN
+    ! COMPUTE SATURATED REDUCTION.
     EXP = FRTEMP - FINDX
     RETURN
   ELSE
     FSAT = (1.0_dp - SATR) ** EXP
+    ! CHANGE AT DRY CONDITIONS
     FDRY = 1.0_dp
   ENDIF
+  ! COMPUTE ACTUAL CHANGE
   IF (LZDEFR .GT. 0.0_dp) THEN
     FR = FSAT + (FDRY - FSAT) * (LZDEFR ** FREXP)
     FI = FR
@@ -486,6 +510,10 @@ END SUBROUTINE FGFR1
 SUBROUTINE FROST1(PX, SUR, DIR, TA, LWE, WE, ISC, AESC, DT, &
                   UZTWM, UZFWM, LZTWM, LZFSM, LZFPM, LZSK, LZPK, &
                   UZTWC, UZFWC, LZTWC, LZFSC, LZFPC)
+  ! THIS SUBROUTINE COMPUTES THE CHANGE IN THE FROZEN GROUND
+  ! INDEX AND MOISTURE MOVEMENT DUE TO TEMPERATURE GRADIENTS.
+
+  ! WRITTEN BY ERIC ANDERSON - HRL   JUNE 1980
 
   USE sac_data_mod, ONLY: dp, FGPM, FGCO
 
@@ -506,14 +534,18 @@ SUBROUTINE FROST1(PX, SUR, DIR, TA, LWE, WE, ISC, AESC, DT, &
 
   ! INITIAL VALUES (FGCO, FGPM are global)
   FINDX = FGCO(1)
-  FINDX1 = FINDX
-
+  FINDX1 = FIND
   CSOIL = 4.0_dp * DT * FGPM(1)
   CSNOW = FGPM(2)
   GHC = FGPM(3) * DT
   RTHAW = FGPM(4)
 
-  ! LOGIC
+  ! COMPUTE MOISTURE MOVEMENT
+  ! EQUATIONS NOT READY YET.
+
+  
+  ! COMPUTE CHANGE IN FROZEN GROUND INDEX.
+  ! CHANGE DUE TO WATER FREZING IN THE SOIL.  
   IF (FINDX .LT. 0.0_dp) THEN
     WATER = PX - SUR - DIR
     IF (WATER .GT. 0.0_dp) THEN
@@ -522,6 +554,7 @@ SUBROUTINE FROST1(PX, SUR, DIR, TA, LWE, WE, ISC, AESC, DT, &
     END IF
   END IF
 
+  ! CHANGE DUE TO TEMPERATURE.
   IF ((FINDX .GE. 0.0_dp) .AND. (TA .GE. 0.0_dp)) THEN
     IF (FINDX.LT.0.0) THEN
       CONTINUE
@@ -530,15 +563,19 @@ SUBROUTINE FROST1(PX, SUR, DIR, TA, LWE, WE, ISC, AESC, DT, &
       RETURN
     ENDIF
   ENDIF
-   
+
+  ! COMPUTE TRANSFER COEFFIENT.   
   IF ((LWE .EQ. 0.0_dp) .OR. (WE.EQ.0.0_dp)) THEN
     C = CSOIL
+    ! COMPUTE CHANGE IN FROST INDEX.  
     IF (TA.GE.0.0) THEN
       FINDX=FINDX+C*TA+GHC
+      ! CHECK FROST INDEX
       IF (FINDX.LT.0.0) THEN
         CONTINUE
       ELSE
         FINDX = 0.0_dp
+        ! SAVE NEW FROST INDEX
         FGCO(1)=FINDX
         RETURN
       ENDIF
