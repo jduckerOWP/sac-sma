@@ -228,7 +228,8 @@ IMPLICIT NONE
 
       IF (DEFR .LT. 0.0_dp) DEFR = 0.0_dp
 
-      !!!! This is not in the R code !!!!!!
+      !!!!!!!! Not in R code, but kept to potentially  !!!!!!!!!!!!!!!
+      !!!!!!!! allow frozen ground implementation in the future !!!!!!
       FR = 1.0_dp
       FI = 1.0_dp
 
@@ -237,7 +238,7 @@ IMPLICIT NONE
         UZDEFR = 1.0_dp - ((UZTWC + UZFWC) / (UZTWM + UZFWM))
         CALL FGFR1(DEFR, FR, FI, LZTWC, LZFSC, LZFPC, LZTWM, LZFPM, LZFSM)
       END IF
-      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
       
       PERC = PERC * (1.0_dp + ZPERC * (DEFR ** REXP)) * FR
@@ -416,24 +417,16 @@ IMPLICIT NONE
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 
-  !!!!!!!! Not in R code !!!!!!!!!!
+  !!!!!!!! Not in R code, but kept to potentially  !!!!!!!!!!!!!!!
+  !!!!!!!! allow frozen ground implementation in the future !!!!!!
 
 
   ! Call FROST1 Subroutine
   IF (IFRZE .GT. 0) CALL FROST1(PXV, SSUR, SDRO, TA, LWE, WE, ISC, AESC, DT, &
                                UZTWM, UZFWM, LZTWM, LZFSM, LZFPM, LZSK, LZPK, &
                                UZTWC, UZFWC, LZTWC, LZFSC, LZFPC)
-  
-  ! Update RSUM
-  RSUM(1) = RSUM(1) + TCI
-  RSUM(2) = RSUM(2) + ROIMP
-  RSUM(3) = RSUM(3) + SDRO
-  RSUM(4) = RSUM(4) + SSUR
-  RSUM(5) = RSUM(5) + SIF
-  RSUM(6) = RSUM(6) + BFS
-  RSUM(7) = RSUM(7) + BFP
 
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   
   
 END SUBROUTINE SAC1
