@@ -418,12 +418,6 @@ IMPLICIT NONE
 
   !!!!!!!! Not in R code !!!!!!!!!!
 
-  SROT = SROT + TCI
-  SETT = SETT + TET
-  SE1 = SE1 + E1 * PAREA
-  SE3 = SE3 + E3 * PAREA
-  SE4 = SE4 + E4
-  SE5 = SE5 + E5
 
   ! Call FROST1 Subroutine
   IF (IFRZE .GT. 0) CALL FROST1(PXV, SSUR, SDRO, TA, LWE, WE, ISC, AESC, DT, &
