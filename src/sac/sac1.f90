@@ -378,15 +378,7 @@ IMPLICIT NONE
   IF (BFS .LT. 0.0_dp) BFS = 0.0_dp
   BFNCC = TBF - BFCC
   
-  ! FSUMS1 Updates
-  SINTFT = SINTFT + SIF
-  SGWFP = SGWFP + BFP
-  SGWFS = SGWFS + BFS
-  SRECHT = SRECHT + BFNCC
-  SROST = SROST + SSUR
-  SRODT = SRODT + SDRO
 
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   !  Surface flow consists of Direct runoff and Surface inflow to the channel
   TCI = ROIMP + SDRO + SSUR + SIF + BFCC
