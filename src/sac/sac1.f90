@@ -369,7 +369,7 @@ IMPLICIT NONE
 
   ! Separate channel component of baseflow from the non-channel component
   TBF = SBF * PAREA ! TBF is the total baseflow
-  BFCC = TBF * (1.0_dp + SIDE) ! BFCC is baseflow, channel component 
+  BFCC = TBF / (1.0_dp + SIDE) ! BFCC is baseflow, channel component 
 
   
   !!!!!!!! Not in R code !!!!!!!!!!
