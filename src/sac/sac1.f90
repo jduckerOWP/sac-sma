@@ -53,6 +53,11 @@ IMPLICIT NONE
 
   ! In case ET1 > UZTWS, no water in the upper
   ! tension water storage
+  !!! This IF/ELSE logic here differs from   !!!!
+  !!!! NOAA-OWP/sac-sma in which this R I    !!!!
+  !!!! IF/ELSE statement had to be met with  !!!!
+  !!!! UZWTC <= 0.0; NOAA-OWP/sac-sma        !!!!
+  !!!! critera was UZWTC < 0.0               !!!!  
   IF (UZTWC .LE. 0.0_dp) THEN
     E1 = E1 + UZTWC
     UZTWC = 0.0_dp
@@ -80,7 +85,7 @@ IMPLICIT NONE
   !!!! This IF/ELSE logic here differs from   !!!!
   !!!! NOAA-OWP/sac-sma in which this ELSE    !!!!
   !!!! statement had to be met only with      !!!!
-  !!!! UZWTC <= 0.0; NOAA-OWP/sac-sma critera !!!!
+  !!!! UZWTC < 0.0; NOAA-OWP/sac-sma critera !!!!
   !!!! was UZWTC <= 0.0 OR                    !!!!
   !!!! UTZWC < 0.0 and UZFWC >= RED.          !!!!
   
