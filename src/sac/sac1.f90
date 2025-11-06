@@ -414,17 +414,15 @@ IMPLICIT NONE
   ! Check that adims >= uztws
   IF (ADIMC .LT. UZTWC) ADIMC = UZTWC 
 
-  ! Total inflow to channel for a timestep
-  TCI = TCI - E4
-
   ! If there is no channel inflow due to 
   ! direct runoff and surface inflow to 
   ! the channel, but ET from riparian vegetation
   ! is present, then to balance the mass
   ! out in the system, we must cancel out 
   ! the  ET from riparian vegetation
-  IF(TCI .EQ. 0.0_dp) THEN
-    E4 = 0.0_dp
+  IF(TCI > E4) THEN
+    ! Total inflow to channel for a timestep
+    TCI = TCI - E4
   ELSE
     ! If TCI become negative because
     ! of ET from riparian vegetation
@@ -433,7 +431,7 @@ IMPLICIT NONE
     ! with the TCI term and then
     ! set TCI to zero to balance
     ! out mass in the system
-    E4 = E4 + TCI
+    E4 = TCI
     TCI = 0.0_dp
   ENDIF
 
