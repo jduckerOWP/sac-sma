@@ -410,9 +410,6 @@ IMPLICIT NONE
   ! No effect if riva is set to zero
   E4 = (EDMND - EUSED) * RIVA
 
-  ! Compute total evapotransporation - TET
-  EUSED = EUSED * PAREA
-  TET = EUSED + E5 + E4
 
   ! Check that adims >= uztws
   IF (ADIMC .LT. UZTWC) ADIMC = UZTWC 
@@ -433,6 +430,12 @@ IMPLICIT NONE
     TCI = 0.0_dp
   ENDIF
 
+
+  ! Compute total evapotransporation - TET
+  EUSED = EUSED * PAREA
+  TET = EUSED + E5 + E4
+
+  
   !!! This R code flag here causes mass imbalance to explode !!!!
   !!! TCI is a component to mass balance, which should be allowed !!!
   !!! to be negative to indicate a balance between mass gained !!!
