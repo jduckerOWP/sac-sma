@@ -419,14 +419,21 @@ IMPLICIT NONE
 
   ! If there is no channel inflow due to 
   ! direct runoff and surface inflow to 
-  ! the channel, but potential evapotranspiration
-  ! is present, then TCI equals E4 to ensure
-  ! mass balance remains in the system
-  IF( TCI .GT. E4) THEN
-    ! Total inflow to channel for a timestep
-    TCI = TCI - E4
+  ! the channel, but ET from riparian vegetation
+  ! is present, then to balance the mass
+  ! out in the system, we must cancel out 
+  ! the  ET from riparian vegetation
+  IF(TCI .EQ. 0.0_dp) THEN
+    E4 = 0.0_dp
   ELSE
-    E4 = TCI
+    ! If TCI become negative because
+    ! of ET from riparian vegetation
+    ! being larger, than we offset
+    ! ET from riparian vegetation
+    ! with the TCI term and then
+    ! set TCI to zero to balance
+    ! out mass in the system
+    E4 = E4 + TCI
     TCI = 0.0_dp
   ENDIF
 
