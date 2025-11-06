@@ -420,6 +420,19 @@ IMPLICIT NONE
   ! Total inflow to channel for a timestep
   TCI = TCI - E4
 
+  ! If there is no channel inflow due to 
+  ! direct runoff and surface inflow to 
+  ! the channel, but potential evapotranspiration
+  ! is present, then TCI equals E4 to ensure
+  ! mass balance remains in the system
+  IF( TCI .GT. E4) THEN
+    ! Total inflow to channel for a timestep
+    TCI = TCI - E4
+  ELSE
+    E4 = TCI
+    TCI = 0.0_dp
+  ENDIF
+
   !!! This R code flag here causes mass imbalance to explode !!!!
   !!! TCI is a component to mass balance, which should be allowed !!!
   !!! to be negative to indicate a balance between mass gained !!!
