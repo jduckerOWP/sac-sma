@@ -149,7 +149,6 @@ model_debug:
 
 # link routines
 link:
-#       $(FC) -fPIC -Bstatic_pgi -rpath,/usr/local/netcdf4-pgi/lib *.o -I./ $(LIBNETCDF) -o $(EXE)
         $(FC) -fPIC -I./ $(LIB) -o $(EXE) *.o
 
 # Remove object files
