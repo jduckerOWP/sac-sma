@@ -103,7 +103,7 @@ IMPLICIT NONE
     !!!! New implementation in R Code that   !!!!
     !!!! was not present in NOAA-OWP/sac-sma !!!!    
     IF (UZTWC < THRES_ZERO) UZTWC = 0.0_dp
-    IF (UZTWC < THRES_ZERO) UZTWC = 0.0_dp
+    IF (UZFWC < THRES_ZERO) UZFWC = 0.0_dp
   END IF
 
   ! ET(3), ET from Lower zone tension water storage when
