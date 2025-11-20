@@ -37,7 +37,7 @@ IMPLICIT NONE
   DOUBLE PRECISION :: SURF_REMAINDER
 
   ! Threshold to be considered as zero
-  THRES_ZERO = 0.00001_dp
+  THRES_ZERO = 0.000000001_dp
   PAREA = 1.0_dp - ADIMP - PCTIM
   
 
