@@ -225,6 +225,7 @@ IMPLICIT NONE
 
     ! Total Baseflow from primary and supplemental storages
     SBF = SBF + BF
+    SPBF = SPBF + BF
     
     ! Compute PERCOLATION- if no water available then skip.
     IF ((PINC + UZFWC) .LE. 0.01_dp) THEN
